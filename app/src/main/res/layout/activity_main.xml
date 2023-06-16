@@ -68,26 +68,26 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:paddingStart="@dimen/spacing_medium"
-        android:paddingTop="@dimen/spacing_tiny"
+        android:paddingTop="@dimen/spacing_medium"
         android:paddingEnd="@dimen/spacing_medium"
         android:text="@string/disconnected"
         android:textSize="@dimen/font_normal"
         app:layout_constraintEnd_toStartOf="@id/guideline_end"
         app:layout_constraintStart_toEndOf="@id/guideline_start"
-        app:layout_constraintTop_toBottomOf="@id/socket_text" />
+        app:layout_constraintTop_toBottomOf="@id/telnyx_image_id" />
 
     <TextView
         android:id="@+id/call_state_text_value"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:paddingStart="@dimen/spacing_medium"
-        android:paddingTop="@dimen/spacing_tiny"
+        android:paddingTop="@dimen/spacing_medium"
         android:paddingEnd="@dimen/spacing_medium"
         android:text="@string/session_pending"
         android:textSize="@dimen/font_normal"
         app:layout_constraintEnd_toStartOf="@id/guideline_end"
         app:layout_constraintStart_toEndOf="@id/guideline_start"
-        app:layout_constraintTop_toBottomOf="@id/call_state_text" />
+        app:layout_constraintTop_toBottomOf="@id/socket_text" />
 
     <include
         android:id="@+id/login_section_id"
@@ -95,6 +95,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/spacing_small"
+        android:visibility="visible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/call_state_text_value" />

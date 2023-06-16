@@ -19,6 +19,8 @@ import com.telnyx.webrtc.sdk.model.TxServerConfiguration
 import com.telnyx.webrtc.sdk.verto.receive.ReceivedMessageBody
 import com.telnyx.webrtc.sdk.verto.receive.SocketResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import java.util.*
 import javax.inject.Inject
 
@@ -33,6 +35,16 @@ class MainViewModel @Inject constructor(
     private var previousCall: Call? = null
 
     private var calls: Map<UUID, Call> = mapOf()
+
+    private val _selectedClientIndex = MutableStateFlow(Int.MAX_VALUE)
+    val selectedClientIndex: StateFlow<Int>
+        get() = _selectedClientIndex
+
+    var selectedDestination = ""
+
+    fun setSelectedIndex(value:Int){
+        _selectedClientIndex.value = value
+    }
 
     fun initConnection(context: Context, providedServerConfig: TxServerConfiguration?) {
         telnyxClient = TelnyxClient(context)

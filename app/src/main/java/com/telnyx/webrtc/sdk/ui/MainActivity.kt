@@ -14,12 +14,18 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.widget.AdapterView.OnItemClickListener
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import com.karumi.dexter.Dexter
@@ -28,13 +34,18 @@ import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import com.telnyx.webrtc.sdk.*
+import com.telnyx.webrtc.sdk.data.ClientRequest
+import com.telnyx.webrtc.sdk.data.toCredentialConfig
 import com.telnyx.webrtc.sdk.manager.UserManager
 import com.telnyx.webrtc.sdk.model.AudioDevice
-import com.telnyx.webrtc.sdk.model.LogLevel
 import com.telnyx.webrtc.sdk.model.SocketMethod
 import com.telnyx.webrtc.sdk.model.TxServerConfiguration
 import com.telnyx.webrtc.sdk.ui.wsmessages.WsMessageFragment
 import com.telnyx.webrtc.sdk.utility.MyFirebaseMessagingService
+import com.telnyx.webrtc.sdk.utility.hide
+import com.telnyx.webrtc.sdk.utility.parseObject
+import com.telnyx.webrtc.sdk.utility.show
+import com.telnyx.webrtc.sdk.utility.showIf
 import com.telnyx.webrtc.sdk.verto.receive.*
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.android.synthetic.main.activity_main.*
@@ -42,11 +53,12 @@ import kotlinx.android.synthetic.main.include_call_control_section.*
 import kotlinx.android.synthetic.main.include_incoming_call_section.*
 import kotlinx.android.synthetic.main.include_login_credential_section.*
 import kotlinx.android.synthetic.main.include_login_section.*
-import kotlinx.android.synthetic.main.include_login_token_section.*
+import kotlinx.coroutines.flow.collectLatest
 import timber.log.Timber
 import java.io.IOException
 import java.util.*
 import javax.inject.Inject
+
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -62,11 +74,23 @@ class MainActivity : AppCompatActivity() {
 
     // Notification handling
     private var notificationAcceptHandling: Boolean? = null
+    private val clients = BuildConfig.client_credentials.parseObject<List<ClientRequest>>()
+
+    private var countDownTimer: Handler? = null
+    private var runnable: Runnable? = null
+    private val TIMER_DELAY = 1000
+    private var callDuration = 0;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(findViewById(R.id.toolbar_id))
+
+
+
+
+        Timber.e("${clients?.size}")
+
 
         // Add environment text
         isDev = userManager.isDev
@@ -78,6 +102,37 @@ class MainActivity : AppCompatActivity() {
 
         checkPermissions()
         initViews()
+        setClients()
+    }
+
+    private fun setClients() {
+        val items = clients?.map { it.sipCallerIdName } ?: emptyList()
+        var destinationItems = clients?.filter { it.sipCallerIdName != items.getOrNull(mainViewModel.selectedClientIndex.value) } ?: emptyList()
+        val clientsAdapter = ArrayAdapter(this, R.layout.cleints_item, items)
+        val callerNumbersAdapter = ArrayAdapter(this, R.layout.cleints_item, destinationItems.map { it.sipCallerIdName }.toMutableList().apply {
+            add("Enter Test Number")
+        })
+        (clientsDropDown.editText as? AutoCompleteTextView)?.setAdapter(clientsAdapter)
+        (callersDropdown.editText as? AutoCompleteTextView)?.setAdapter(callerNumbersAdapter)
+        autoComplete.onItemClickListener =
+            OnItemClickListener { _, _, position, _ -> mainViewModel.setSelectedIndex(position) }
+
+        destAutoComplete.onItemClickListener = OnItemClickListener { _, _, position, _ ->
+            mainViewModel.selectedDestination = destinationItems.getOrNull(position)?.sipUserName ?: ""
+            customDestination.showIf {
+                // Only Empty if last item is selected
+                mainViewModel.selectedDestination.isEmpty() }
+        }
+        lifecycleScope.launchWhenStarted {
+            mainViewModel.selectedClientIndex.collectLatest {index ->
+                callerNumbersAdapter.clear()
+                destinationItems = clients?.filter { it.sipCallerIdName != items.getOrNull(mainViewModel.selectedClientIndex.value) } ?: emptyList()
+                callerNumbersAdapter.addAll(destinationItems.map { it.sipCallerIdName }.toMutableList().apply {
+                    add("Enter Test Number")
+                })
+            }
+        }
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -95,11 +150,13 @@ class MainActivity : AppCompatActivity() {
             }
             true
         }
+
         R.id.action_change_audio_output -> {
             val dialog = createAudioOutputSelectionDialog()
             dialog.show()
             true
         }
+
         R.id.action_wsmessages -> {
             if (wsMessageList == null) {
                 wsMessageList = ArrayList()
@@ -111,6 +168,7 @@ class MainActivity : AppCompatActivity() {
                 .commitAllowingStateLoss()
             true
         }
+
         else -> {
             super.onOptionsItemSelected(item)
         }
@@ -130,9 +188,11 @@ class MainActivity : AppCompatActivity() {
                     0 -> {
                         mainViewModel.changeAudioOutput(AudioDevice.PHONE_EARPIECE)
                     }
+
                     1 -> {
                         mainViewModel.changeAudioOutput(AudioDevice.BLUETOOTH)
                     }
+
                     2 -> {
                         mainViewModel.changeAudioOutput(AudioDevice.LOUDSPEAKER)
                     }
@@ -198,10 +258,12 @@ class MainActivity : AppCompatActivity() {
                                 call_button_id.visibility = View.VISIBLE
                                 cancel_call_button_id.visibility = View.GONE
                                 invitationSent = false
+                                startTimer()
                             }
 
                             SocketMethod.BYE.methodName -> {
                                 onByeReceivedViews()
+                                stopTimer()
                             }
                         }
                     }
@@ -258,17 +320,34 @@ class MainActivity : AppCompatActivity() {
         handleUserLoginState()
         getFCMToken()
         observeWsMessage()
+        setupTimer()
 
         connect_button_id.setOnClickListener {
             if (!hasLoginEmptyFields()) {
                 connectButtonPressed()
+            }else {
+                Toast.makeText(this,getString(R.string.select_client_msg),Toast.LENGTH_LONG).show()
             }
         }
         call_button_id.setOnClickListener {
+
+
+            val number = mainViewModel.selectedDestination.ifEmpty {
+                customDestinationTxt.text.toString()
+            }
+
+            if (mainViewModel.selectedDestination.isEmpty() && number.isEmpty()){
+                Toast.makeText(this,getString(R.string.select_destination_msg),Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
+            Timber.e("Number: $number")
+
+
             mainViewModel.sendInvite(
                 userManager.callerIdName,
                 userManager.callerIdNumber,
-                call_input_id.text.toString(),
+                number,
                 "Sample Client State"
             )
             call_button_id.visibility = View.GONE
@@ -278,6 +357,7 @@ class MainActivity : AppCompatActivity() {
             mainViewModel.endCall()
             call_button_id.visibility = View.VISIBLE
             cancel_call_button_id.visibility = View.GONE
+            stopTimer()
         }
         telnyx_image_id.setOnLongClickListener {
             onCreateSecretMenuDialog().show()
@@ -285,6 +365,26 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupTimer(){
+        countDownTimer = Handler(Looper.getMainLooper())
+        runnable = object : Runnable {
+            override fun run() {
+                countDownTimer!!.postDelayed(this, TIMER_DELAY.toLong())
+                callDuration  =+ 1
+
+            }
+        }
+    }
+
+    private fun stopTimer(){
+        callTimer.hide()
+        runnable?.let { countDownTimer?.removeCallbacks(it) }
+    }
+
+    private fun startTimer(){
+        callTimer.show()
+        countDownTimer!!.post(runnable!!);
+    }
     private fun onCreateSecretMenuDialog(): Dialog {
         return this.let {
             val secretOptionList = arrayOf(
@@ -306,6 +406,7 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this, "Switched to DEV environment", Toast.LENGTH_LONG)
                                 .show()
                         }
+
                         1 -> {
                             // Switch to Prod
                             isDev = false
@@ -314,6 +415,7 @@ class MainActivity : AppCompatActivity() {
                             Toast.makeText(this, "Switched to PROD environment", Toast.LENGTH_LONG)
                                 .show()
                         }
+
                         2 -> {
                             val clipboardManager =
                                 getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -329,19 +431,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hasLoginEmptyFields(): Boolean {
-        var hasEmptyFields = false
-        if (token_login_switch.isChecked) {
-            if (sip_token_id.text.isEmpty()) {
-                showEmptyFieldsToast()
-                hasEmptyFields = true
-            }
-        } else {
-            if (sip_username_id.text.isEmpty() || sip_password_id.text.isEmpty()) {
-                showEmptyFieldsToast()
-                hasEmptyFields = true
-            }
-        }
-        return hasEmptyFields
+        Timber.e("Index ${mainViewModel.selectedClientIndex.value}")
+        return mainViewModel.selectedClientIndex.value == Int.MAX_VALUE
     }
 
     private fun showEmptyFieldsToast() {
@@ -364,7 +455,7 @@ class MainActivity : AppCompatActivity() {
             call_control_section_id.visibility = View.GONE
         } else {
             isAutomaticLogin = true
-            connectButtonPressed()
+            //connectButtonPressed()
         }
     }
 
@@ -386,56 +477,37 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun doLogin(isAuto: Boolean) {
-        // path to ringtone and ringBackTone
-        val ringtone = R.raw.incoming_call
-        val ringBackTone = R.raw.ringback_tone
-
         if (isAuto) {
-            val loginConfig = CredentialConfig(
-                userManager.sipUsername,
-                userManager.sipPass,
-                userManager.callerIdNumber,
-                userManager.callerIdNumber,
-                userManager.fcmToken,
-                R.raw.incoming_call,
-                R.raw.ringback_tone,
-                LogLevel.ALL
-            )
+            val loginConfig = clients?.get(mainViewModel.selectedClientIndex.value)?.toCredentialConfig()
+            loginConfig ?: return
             mainViewModel.doLoginWithCredentials(loginConfig)
         } else {
             if (token_login_switch.isChecked) {
-                val sipToken = sip_token_id.text.toString()
-                val sipCallerName = token_caller_id_name_id.text.toString()
-                val sipCallerNumber = token_caller_id_number_id.text.toString()
+                 /*val sipToken = sip_token_id.text.toString()
+                 val sipCallerName = token_caller_id_name_id.text.toString()
+                 val sipCallerNumber = token_caller_id_number_id.text.toString()
 
-                val loginConfig = TokenConfig(
-                    sipToken,
-                    sipCallerName,
-                    sipCallerNumber,
-                    fcmToken,
-                    ringtone,
-                    ringBackTone,
-                    LogLevel.ALL
-                )
-                mainViewModel.doLoginWithToken(loginConfig)
-            } else {
-                val sipUsername = sip_username_id.text.toString()
-                val password = sip_password_id.text.toString()
-                val sipCallerName = caller_id_name_id.text.toString()
-                val sipCallerNumber = caller_id_number_id.text.toString()
+                 val loginConfig = TokenConfig(
+                     sipToken,
+                     sipCallerName,
+                     sipCallerNumber,
+                     fcmToken,
+                     ringtone,
+                     ringBackTone,
+                     LogLevel.ALL
+                 )
+                 mainViewModel.doLoginWithToken(loginConfig)*/
+             }
+             else {
+                 val sipUsername = sip_username_id.text.toString()
+                 val password = sip_password_id.text.toString()
+                 val sipCallerName = caller_id_name_id.text.toString()
+                 val sipCallerNumber = caller_id_number_id.text.toString()
 
-                val loginConfig = CredentialConfig(
-                    sipUsername,
-                    password,
-                    sipCallerName,
-                    sipCallerNumber,
-                    fcmToken,
-                    ringtone,
-                    ringBackTone,
-                    LogLevel.ALL
-                )
+                val loginConfig = clients?.get(mainViewModel.selectedClientIndex.value)?.toCredentialConfig()
+                loginConfig ?: return
                 mainViewModel.doLoginWithCredentials(loginConfig)
-            }
+             }
         }
     }
 
@@ -506,10 +578,12 @@ class MainActivity : AppCompatActivity() {
                 onAcceptCall(callId, callerIdNumber)
                 notificationAcceptHandling = null
             }
+
             false -> {
                 onRejectCall(callId)
                 notificationAcceptHandling = null
             }
+
             else -> {
                 call_control_section_id.visibility = View.GONE
                 incoming_call_section_id.visibility = View.VISIBLE

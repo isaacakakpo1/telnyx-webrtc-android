@@ -35,8 +35,10 @@ android {
         }
 
         release {
+
             buildConfigField 'String', "MOCK_USERNAME", properties.getProperty('MOCK_USERNAME', '"xxxxx"')
             buildConfigField 'String', "MOCK_PASSWORD", properties.getProperty('MOCK_PASSWORD', '"xxxxx"')
+            buildConfigField 'String', "client_credentials", properties.getProperty('clients_credentials', '""')
 
             resValue('string', "mock_username", properties.getProperty('MOCK_USERNAME', '"xxxxx"'))
             resValue('string', "mock_password", properties.getProperty('MOCK_PASSWORD', '"xxxxx"'))
@@ -46,6 +48,8 @@ android {
             jniDebuggable true
         }
         debug {
+            buildConfigField 'String', "client_credentials", properties.getProperty('clients_credentials', '""')
+
             buildConfigField 'String', "MOCK_USERNAME", properties.getProperty('MOCK_USERNAME', '"xxxxx"')
             buildConfigField 'String', "MOCK_PASSWORD", properties.getProperty('MOCK_PASSWORD', '"xxxxx"')
 

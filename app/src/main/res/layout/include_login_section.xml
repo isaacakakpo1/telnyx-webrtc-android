@@ -1,37 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
+    android:paddingVertical="16dp"
     android:paddingLeft="16dp"
     android:paddingRight="16dp">
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/token_login_switch"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/spacing_small"
-        android:text="@string/token_login"
-        android:checked="false"
-        android:textOff="@string/off"
-        android:textOn="@string/on"
-        />
 
-    <include
-        android:id="@+id/login_credential_id"
-        layout="@layout/include_login_credential_section"
-        android:visibility="visible"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-      />
+        android:orientation="vertical"
+        android:visibility="gone">
 
-    <include
-        android:id="@+id/login_token_id"
-        layout="@layout/include_login_token_section"
-        android:visibility="gone"
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/token_login_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_small"
+            android:text="@string/token_login"
+            android:checked="false"
+            android:textOff="@string/off"
+            android:textOn="@string/on"
+            />
+
+        <include
+            android:id="@+id/login_credential_id"
+            layout="@layout/include_login_credential_section"
+            android:visibility="visible"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            />
+
+        <include
+            android:id="@+id/login_token_id"
+            layout="@layout/include_login_token_section"
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            />
+
+    </LinearLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/clientsDropDown"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        />
+        android:hint="@string/clients">
+
+        <AutoCompleteTextView
+            android:id="@+id/autoComplete"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/clients"
+            android:inputType="none"
+            />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
 
     <Button
         android:id="@+id/connect_button_id"

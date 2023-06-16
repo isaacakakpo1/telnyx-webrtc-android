@@ -5,9 +5,53 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/callersDropdown"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        app:layout_constraintStart_toStartOf="@id/guideline_start"
+        app:layout_constraintEnd_toEndOf="@id/guideline_end"
+        app:layout_constraintTop_toTopOf="parent"
+       >
+
+        <AutoCompleteTextView
+            android:id="@+id/destAutoComplete"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/caller_ids_hint"
+            android:inputType="none"
+            />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="0dp"
+        android:id="@+id/customDestination"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:visibility="gone"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:paddingVertical="10dp"
+        app:layout_constraintStart_toStartOf="@id/guideline_start"
+        app:layout_constraintEnd_toEndOf="@id/guideline_end"
+        app:layout_constraintTop_toBottomOf="@+id/callersDropdown"
+        android:hint="@string/enter_custom_destination">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/customDestinationTxt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            />
+
+    </com.google.android.material.textfield.TextInputLayout>
+
     <EditText
         android:id="@+id/call_input_id"
         android:layout_width="0dp"
+        android:visibility="gone"
         android:layout_height="wrap_content"
         android:hint="@string/phone_number"
         android:singleLine="true"
@@ -15,6 +59,18 @@
         app:layout_constraintStart_toStartOf="@id/guideline_start"
         app:layout_constraintEnd_toEndOf="@id/guideline_end"
         app:layout_constraintTop_toTopOf="parent"/>
+
+    <TextView
+        android:id="@+id/callTimer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginBottom="@dimen/spacing_small"
+        android:gravity="center_vertical|center_horizontal"
+        android:layout_marginTop="@dimen/spacing_medium"
+        app:layout_constraintStart_toStartOf="@id/guideline_start"
+        app:layout_constraintEnd_toEndOf="@id/guideline_end"
+        app:layout_constraintTop_toBottomOf="@id/customDestination"/>
 
     <ImageButton
         android:id="@+id/call_button_id"
@@ -27,7 +83,7 @@
         android:layout_marginTop="@dimen/spacing_medium"
         app:layout_constraintStart_toStartOf="@id/guideline_start"
         app:layout_constraintEnd_toEndOf="@id/guideline_end"
-        app:layout_constraintTop_toBottomOf="@id/call_input_id"/>
+        app:layout_constraintTop_toBottomOf="@id/callTimer"/>
 
     <ImageButton
         android:id="@+id/cancel_call_button_id"
@@ -41,7 +97,7 @@
         app:layout_constraintStart_toStartOf="@id/guideline_start"
         app:layout_constraintEnd_toEndOf="@id/guideline_end"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/call_input_id"/>
+        app:layout_constraintTop_toBottomOf="@id/callTimer"/>
 
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline_start"
