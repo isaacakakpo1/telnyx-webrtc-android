@@ -176,6 +176,7 @@ dependencies {
     testImplementation "org.slf4j:slf4j-nop:1.7.36"
 
     testImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
+    implementation "androidx.datastore:datastore-preferences:1.0.0"
 
 
     // Testing - Instrumentation

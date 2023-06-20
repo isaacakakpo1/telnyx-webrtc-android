@@ -34,7 +34,7 @@
         android:layout_width="188dp"
         android:layout_height="36dp"
         android:layout_marginTop="@dimen/spacing_large"
-        android:src="@drawable/ic_telnyx_logo"
+        android:src="@drawable/telnyx_main_logo"
         android:focusable="true"
         android:clickable="true"
         app:layout_constraintEnd_toStartOf="@id/guideline_end"

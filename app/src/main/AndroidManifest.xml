@@ -12,12 +12,13 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_app_icon"
+        android:icon="@mipmap/ic_new_icon"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_app_icon_round"
+        android:roundIcon="@mipmap/ic_new_icon_round"
         android:supportsRtl="true"
         android:name=".App"
         android:theme="@style/Theme.TelnyxAndroidWebRTCSDK">
@@ -58,6 +59,17 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="telnyx_channel" />
+
+        <receiver
+            android:name=".notification.EndCallBroadCastReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.telnyx.endcall" />
+            </intent-filter>
+        </receiver>
+
+        <service android:name=".notification.ActiveCallService"
+            />
 
     </application>
 </manifest>

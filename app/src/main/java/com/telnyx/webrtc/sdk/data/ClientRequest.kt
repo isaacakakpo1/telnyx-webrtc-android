@@ -11,7 +11,7 @@ data class ClientRequest(
 ) : BaseClientRequest()
 
 open class BaseClientRequest(
-    val callerIdNumber: String = "0541229045",
+    val callerIdNumber: String = "",
     val fcmToken: String = "",
     val incomingCallRing: Int = R.raw.incoming_call,
     val ringBackTone: Int = R.raw.ringback_tone

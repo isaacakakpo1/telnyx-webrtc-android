@@ -6,6 +6,7 @@ package com.telnyx.webrtc.sdk.di
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.telnyx.webrtc.sdk.manager.AppDataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,6 +27,12 @@ object AppModule {
             SHARED_PREFERENCES_KEY,
             Context.MODE_PRIVATE
         )
+    }
+
+    @Singleton
+    @Provides
+    fun provideAppDatastore(@ApplicationContext context: Context): AppDataStore {
+        return AppDataStore(context)
     }
 
 

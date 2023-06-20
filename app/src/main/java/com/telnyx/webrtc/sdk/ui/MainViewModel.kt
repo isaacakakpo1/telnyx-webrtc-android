@@ -5,9 +5,12 @@
 package com.telnyx.webrtc.sdk.ui
 
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import com.google.gson.JsonObject
+import com.telnyx.webrtc.sdk.App
 import com.telnyx.webrtc.sdk.Call
 import com.telnyx.webrtc.sdk.CredentialConfig
 import com.telnyx.webrtc.sdk.TelnyxClient
@@ -16,11 +19,13 @@ import com.telnyx.webrtc.sdk.manager.UserManager
 import com.telnyx.webrtc.sdk.model.AudioDevice
 import com.telnyx.webrtc.sdk.model.CallState
 import com.telnyx.webrtc.sdk.model.TxServerConfiguration
+import com.telnyx.webrtc.sdk.notification.ActiveCallService
 import com.telnyx.webrtc.sdk.verto.receive.ReceivedMessageBody
 import com.telnyx.webrtc.sdk.verto.receive.SocketResponse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import timber.log.Timber
 import java.util.*
 import javax.inject.Inject
 
@@ -47,12 +52,15 @@ class MainViewModel @Inject constructor(
     }
 
     fun initConnection(context: Context, providedServerConfig: TxServerConfiguration?) {
-        telnyxClient = TelnyxClient(context)
+        //Initialise after every connection
+        App.txClient = TelnyxClient(context)
+        telnyxClient = App.txClient
         providedServerConfig?.let {
             telnyxClient?.connect(it)
         } ?: run {
             telnyxClient?.connect()
         }
+
     }
 
     fun saveUserData(
@@ -87,6 +95,8 @@ class MainViewModel @Inject constructor(
         currentCall = calls[callId]
     }
 
+
+
     fun getCallState(): LiveData<CallState>? = currentCall?.getCallState()
     fun getIsMuteStatus(): LiveData<Boolean>? = currentCall?.getIsMuteStatus()
     fun getIsOnHoldStatus(): LiveData<Boolean>? = currentCall?.getIsOnHoldStatus()
@@ -114,15 +124,46 @@ class MainViewModel @Inject constructor(
     }
 
     fun endCall(callId: UUID? = null) {
+
         callId?.let {
-            telnyxClient?.call?.endCall(callId)
+            try {
+                telnyxClient?.call?.endCall(callId)
+            }catch (e:java.lang.Exception){
+                Timber.e(e)
+            }
         } ?: run {
-            val clientCallId = telnyxClient?.call?.callId
-            clientCallId?.let { telnyxClient?.call?.endCall(it) }
+            try {
+                val clientCallId = telnyxClient?.call?.callId
+                clientCallId?.let { telnyxClient?.call?.endCall(it) }
+            }catch (e:Exception){
+                Timber.e(e)
+            }
+
         }
         previousCall?.let {
             currentCall = it
         }
+
+    }
+
+    fun stopActiveCallService(context: Context){
+        try {
+            context.apply {
+                Timber.d("Launching ActiveCallService")
+                val mainIntent = Intent(this, ActiveCallService::class.java).apply {
+                    putExtra(ActiveCallService.STOP_SERVICE_KEY,true)
+                } // Build the intent for the service
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    this.startForegroundService(mainIntent)
+                }else {
+                    this.startService(mainIntent)
+                }
+            }
+        }catch (e:Exception){
+            Timber.e(e)
+        }
+
+
     }
 
     fun onHoldUnholdPressed(callId: UUID) {

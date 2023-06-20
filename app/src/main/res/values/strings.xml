@@ -17,13 +17,15 @@
     <string name="answer">Answer</string>
     <string name="incoming_call">Incoming Call</string>
     <string name="end">End</string>
+    <string name="ongoing_call">Ongoing Calll</string>
+    <string name="active_call">Your call is active</string>
 
     <string name="telnyx_notification_channel_description">Telnyx WebRTC call notification</string>
     <string name="telnyx_notification_channel_id" translatable="false">telnyx_channel</string>
     <string name="telnyx_notification_channel_name" translatable="true">Telnyx</string>
     <string name="message_subscribe_failed">Failed to subscribe to topic</string>
     <string name="message_subscribed">Subscribed to topic</string>
-    <string name="connected">Connected</string>
+    <string name="connected">Connected  (%1s)</string>
     <string name="disconnect">Disconnect</string>
     <string name="login_token">Login Token</string>
     <string name="token_login">Token login</string>

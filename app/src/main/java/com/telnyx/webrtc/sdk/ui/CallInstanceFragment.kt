@@ -4,41 +4,62 @@
 
 package com.telnyx.webrtc.sdk.ui
 
+import android.app.ActivityManager
+import android.content.Context
+import android.content.Context.ACTIVITY_SERVICE
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.media.ToneGenerator.*
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.View
+import android.widget.Chronometer
+import android.widget.Chronometer.OnChronometerTickListener
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.davidmiguel.numberkeyboard.NumberKeyboard
 import com.davidmiguel.numberkeyboard.NumberKeyboardListener
 import com.telnyx.webrtc.sdk.R
+import com.telnyx.webrtc.sdk.manager.AppDataStore
+import com.telnyx.webrtc.sdk.manager.UserManager
 import com.telnyx.webrtc.sdk.model.SocketMethod
+import com.telnyx.webrtc.sdk.notification.ActiveCallService
 import com.telnyx.webrtc.sdk.verto.receive.*
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.fragment_call_instance.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.lang.Exception
 import java.util.*
+import javax.inject.Inject
 
 
 private const val CALLER_ID = "callId"
 
 lateinit var mainViewModel: MainViewModel
 
-
 /**
  * A simple [Fragment] subclass.
  * Use the [CallInstanceFragment.newInstance] factory method to
  * create an instance of this fragment.
  */
+@AndroidEntryPoint
 class CallInstanceFragment : Fragment(R.layout.fragment_call_instance), NumberKeyboardListener {
     private var callId: UUID? = null
+
+    @Inject
+    lateinit var appDataStore: AppDataStore
 
     private val toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        obServeCallStatus()
         arguments?.let {
             callId = UUID.fromString(it.getString(CALLER_ID))
         }
@@ -55,6 +76,7 @@ class CallInstanceFragment : Fragment(R.layout.fragment_call_instance), NumberKe
         //Handle call option observers
         mainViewModel.getCallState()?.observe(this.viewLifecycleOwner, { value ->
             requireActivity().call_state_text_value.text = value.name
+
         })
         mainViewModel.getIsMuteStatus()?.observe(this.viewLifecycleOwner, { value ->
             if (!value) {
@@ -102,28 +124,67 @@ class CallInstanceFragment : Fragment(R.layout.fragment_call_instance), NumberKe
     }
 
     private fun onEndCall() {
-        mainViewModel.endCall(callId!!)
-        call_timer_id.stop()
-        parentFragmentManager.beginTransaction().remove(this@CallInstanceFragment).commit();
+        try {
+            parentFragmentManager.beginTransaction().remove(this@CallInstanceFragment).commit();
+            call_timer_id.stop()
+            requireActivity().call_state_text_value.text = "-"
+            if (requireContext().isServiceForegrounded(ActiveCallService::class.java)){
+                mainViewModel.stopActiveCallService(requireActivity().applicationContext)
+                mainViewModel.endCall(callId)
+            }
+        }catch (e:Exception){
+            Timber.e(e)
+        }
+
     }
+
+    private fun obServeCallStatus(){
+        lifecycleScope.launch {
+            appDataStore.callEndFlow.collectLatest {
+                Timber.e("Collected CallEnd Flow $it")
+               /* if(it){
+                   parentFragmentManager.beginTransaction().remove(this@CallInstanceFragment).commit();
+                    appDataStore.changeEndCallStatus(false)
+                }*/
+            }
+        }
+
+    }
+
+    @Suppress("DEPRECATION") // Deprecated for third party Services.
+    fun <T> Context.isServiceForegrounded(service: Class<T>) =
+        (getSystemService(ACTIVITY_SERVICE) as? ActivityManager)
+            ?.getRunningServices(Integer.MAX_VALUE)
+            ?.find { it.service.className == service.name }
+            ?.foreground == true
 
     private fun onTimerStart() {
         call_timer_id.base = SystemClock.elapsedRealtime()
         call_timer_id.start()
+        call_timer_id.onChronometerTickListener = OnChronometerTickListener {
+            mainViewModel.getCallState()?.observe(this.viewLifecycleOwner) { value ->
+                if (!value.name.lowercase().contains("active")){
+                    parentFragmentManager.beginTransaction().remove(this@CallInstanceFragment).commit();
+                }
+            }
+        }
+
     }
 
     private fun observeSocketResponses() {
         mainViewModel.getSocketResponse()
-            ?.observe(this.viewLifecycleOwner, object : SocketObserver<ReceivedMessageBody>() {
+            ?.observe(viewLifecycleOwner, object : SocketObserver<ReceivedMessageBody>() {
                 override fun onMessageReceived(data: ReceivedMessageBody?) {
                     when (data?.method) {
                         SocketMethod.INVITE.methodName -> {
                             //NOOP
                         }
                         SocketMethod.BYE.methodName -> {
+                            Timber.e("Bye Here")
                             parentFragmentManager.beginTransaction()
                                 .remove(this@CallInstanceFragment).commit();
                         }
+
                     }
                 }
 
@@ -136,6 +197,7 @@ class CallInstanceFragment : Fragment(R.layout.fragment_call_instance), NumberKe
                 }
 
                 override fun onError(message: String?) {
+                    Timber.e("Error messaged $message")
                     //NOOP
                 }
 

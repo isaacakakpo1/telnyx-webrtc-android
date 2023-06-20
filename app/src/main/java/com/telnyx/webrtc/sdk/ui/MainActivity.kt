@@ -12,10 +12,12 @@ import android.app.Dialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -36,15 +38,15 @@ import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import com.telnyx.webrtc.sdk.*
 import com.telnyx.webrtc.sdk.data.ClientRequest
 import com.telnyx.webrtc.sdk.data.toCredentialConfig
+import com.telnyx.webrtc.sdk.manager.AppDataStore
 import com.telnyx.webrtc.sdk.manager.UserManager
 import com.telnyx.webrtc.sdk.model.AudioDevice
 import com.telnyx.webrtc.sdk.model.SocketMethod
 import com.telnyx.webrtc.sdk.model.TxServerConfiguration
+import com.telnyx.webrtc.sdk.notification.ActiveCallService
 import com.telnyx.webrtc.sdk.ui.wsmessages.WsMessageFragment
 import com.telnyx.webrtc.sdk.utility.MyFirebaseMessagingService
-import com.telnyx.webrtc.sdk.utility.hide
 import com.telnyx.webrtc.sdk.utility.parseObject
-import com.telnyx.webrtc.sdk.utility.show
 import com.telnyx.webrtc.sdk.utility.showIf
 import com.telnyx.webrtc.sdk.verto.receive.*
 import dagger.hilt.android.AndroidEntryPoint
@@ -54,6 +56,7 @@ import kotlinx.android.synthetic.main.include_incoming_call_section.*
 import kotlinx.android.synthetic.main.include_login_credential_section.*
 import kotlinx.android.synthetic.main.include_login_section.*
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.IOException
 import java.util.*
@@ -65,6 +68,10 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var userManager: UserManager
+
+    @Inject
+    lateinit var appDataStore: AppDataStore
+
     private var invitationSent: Boolean = false
     private lateinit var mainViewModel: MainViewModel
     private var fcmToken: String? = null
@@ -85,6 +92,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(findViewById(R.id.toolbar_id))
+
+        lifecycleScope.launch {
+            appDataStore.changeEndCallStatus(false)
+        }
 
 
 
@@ -258,12 +269,11 @@ class MainActivity : AppCompatActivity() {
                                 call_button_id.visibility = View.VISIBLE
                                 cancel_call_button_id.visibility = View.GONE
                                 invitationSent = false
-                                startTimer()
                             }
 
                             SocketMethod.BYE.methodName -> {
                                 onByeReceivedViews()
-                                stopTimer()
+                                mainViewModel.stopActiveCallService(applicationContext)
                             }
                         }
                     }
@@ -299,7 +309,10 @@ class MainActivity : AppCompatActivity() {
             )
     }
 
+
+
     private fun observeWsMessage() {
+
         mainViewModel.getWsMessageResponse()?.observe(this) {
             it?.let { wsMesssage ->
                 wsMessageList?.add(wsMesssage.toString())
@@ -322,6 +335,10 @@ class MainActivity : AppCompatActivity() {
         observeWsMessage()
         setupTimer()
 
+        //Handle call option observers
+        mainViewModel.getCallState()?.observe(this) { value ->
+            call_state_text_value.text = value.name
+        }
         connect_button_id.setOnClickListener {
             if (!hasLoginEmptyFields()) {
                 connectButtonPressed()
@@ -357,7 +374,6 @@ class MainActivity : AppCompatActivity() {
             mainViewModel.endCall()
             call_button_id.visibility = View.VISIBLE
             cancel_call_button_id.visibility = View.GONE
-            stopTimer()
         }
         telnyx_image_id.setOnLongClickListener {
             onCreateSecretMenuDialog().show()
@@ -376,15 +392,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun stopTimer(){
-        callTimer.hide()
-        runnable?.let { countDownTimer?.removeCallbacks(it) }
-    }
-
-    private fun startTimer(){
-        callTimer.show()
-        countDownTimer!!.post(runnable!!);
-    }
     private fun onCreateSecretMenuDialog(): Dialog {
         return this.let {
             val secretOptionList = arrayOf(
@@ -535,7 +542,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onLoginSuccessfullyViews() {
-        socket_text_value.text = getString(R.string.connected)
+        socket_text_value.text = getString(R.string.connected,clients?.getOrNull( mainViewModel.selectedClientIndex.value ?: 0)?.sipCallerIdName ?: "")
         login_section_id.visibility = View.GONE
         call_control_section_id.visibility = View.VISIBLE
 
@@ -555,12 +562,27 @@ class MainActivity : AppCompatActivity() {
 
     private fun launchCallInstance(callId: UUID) {
         mainViewModel.setCurrentCall(callId)
-
         val callInstanceFragment = CallInstanceFragment.newInstance(callId.toString())
         supportFragmentManager.beginTransaction()
             .add(R.id.fragment_call_instance, callInstanceFragment)
             .commit()
+       launchActiveCallService(callId)
     }
+
+    private fun launchActiveCallService(callId: UUID){
+        Timber.d("Launching ActiveCallService")
+        val mainIntent = Intent(this, ActiveCallService::class.java).apply {
+            putExtra(ActiveCallService.CALL_ID_KEY,callId.toString())
+
+        } // Build the intent for the service
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            this.startForegroundService(mainIntent)
+        }else {
+            this.startService(mainIntent)
+        }
+    }
+
+
 
     private fun onByeReceivedViews() {
         invitationSent = false
@@ -688,5 +710,15 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         handleCallNotification()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.e("Tag","Destroyed")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.e("Tag","onStop")
     }
 }

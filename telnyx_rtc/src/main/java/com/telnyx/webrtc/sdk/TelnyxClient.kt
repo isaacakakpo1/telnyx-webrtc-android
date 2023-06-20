@@ -36,6 +36,7 @@ class TelnyxClient(
     var context: Context,
 ) : TxSocketListener {
 
+
     companion object {
         const val RETRY_REGISTER_TIME = 3
         const val RETRY_CONNECT_TIME = 3
