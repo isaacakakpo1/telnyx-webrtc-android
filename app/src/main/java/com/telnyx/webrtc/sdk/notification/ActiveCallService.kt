@@ -22,6 +22,7 @@ import com.telnyx.webrtc.sdk.manager.AppDataStore
 import com.telnyx.webrtc.sdk.manager.UserManager
 import com.telnyx.webrtc.sdk.notification.ActiveCallService.Companion.NOTIFICATION_ID_KEY
 import com.telnyx.webrtc.sdk.ui.MainActivity
+import com.telnyx.webrtc.sdk.ui.isServiceForegrounded
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -72,17 +73,19 @@ class ActiveCallService : LifecycleService() {
                 lifecycleScope.launch {
                     appDataStore.changeEndCallStatus(true)
                     delay(1000)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        this@ActiveCallService.stopForeground(STOP_FOREGROUND_REMOVE)
-                    }else{
-                        stopForeground(true)
-                    }                }
+                    if (applicationContext.isServiceForegrounded(ActiveCallService::class.java)){
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            this@ActiveCallService.stopForeground(STOP_FOREGROUND_REMOVE)
+                        }else{
+                            stopForeground(true)
+                        }
+                    }
+
+                }
 
             }catch (e:Exception){
                 Timber.e(e)
             }
-
-            stopSelf()
             return START_NOT_STICKY
         }
         createNotificationChannel()

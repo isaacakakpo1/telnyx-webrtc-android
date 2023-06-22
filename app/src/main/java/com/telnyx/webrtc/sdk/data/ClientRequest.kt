@@ -17,7 +17,7 @@ open class BaseClientRequest(
     val ringBackTone: Int = R.raw.ringback_tone
 )
 
-fun ClientRequest.toCredentialConfig(): CredentialConfig {
+fun ClientRequest.toCredentialConfig(mainFcMToken:String? = null): CredentialConfig {
     return CredentialConfig(
         sipUser = sipUserName,
         sipPassword = sipPassword,
@@ -25,7 +25,7 @@ fun ClientRequest.toCredentialConfig(): CredentialConfig {
         sipCallerIDNumber = callerIdNumber,
         ringBackTone = ringBackTone,
         ringtone = incomingCallRing,
-        fcmToken = fcmToken,
+        fcmToken = mainFcMToken ?: fcmToken,
         logLevel = LogLevel.ALL
     )
 }

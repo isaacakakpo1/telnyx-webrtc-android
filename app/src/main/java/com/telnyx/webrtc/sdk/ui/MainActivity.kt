@@ -273,7 +273,10 @@ class MainActivity : AppCompatActivity() {
 
                             SocketMethod.BYE.methodName -> {
                                 onByeReceivedViews()
-                                mainViewModel.stopActiveCallService(applicationContext)
+                                if (this@MainActivity.isServiceForegrounded(ActiveCallService::class.java)){
+                                    mainViewModel.stopActiveCallService(applicationContext)
+
+                                }
                             }
                         }
                     }
@@ -329,6 +332,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
+
         mockInputs()
         handleUserLoginState()
         getFCMToken()
@@ -485,7 +489,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun doLogin(isAuto: Boolean) {
         if (isAuto) {
-            val loginConfig = clients?.get(mainViewModel.selectedClientIndex.value)?.toCredentialConfig()
+            val loginConfig = clients?.get(mainViewModel.selectedClientIndex.value)?.toCredentialConfig(fcmToken)
             loginConfig ?: return
             mainViewModel.doLoginWithCredentials(loginConfig)
         } else {
@@ -511,7 +515,7 @@ class MainActivity : AppCompatActivity() {
                  val sipCallerName = caller_id_name_id.text.toString()
                  val sipCallerNumber = caller_id_number_id.text.toString()
 
-                val loginConfig = clients?.get(mainViewModel.selectedClientIndex.value)?.toCredentialConfig()
+                val loginConfig = clients?.get(mainViewModel.selectedClientIndex.value)?.toCredentialConfig(fcmToken)
                 loginConfig ?: return
                 mainViewModel.doLoginWithCredentials(loginConfig)
              }
