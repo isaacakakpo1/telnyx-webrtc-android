@@ -22,6 +22,7 @@ import com.telnyx.webrtc.sdk.manager.AppDataStore
 import com.telnyx.webrtc.sdk.manager.UserManager
 import com.telnyx.webrtc.sdk.notification.ActiveCallService.Companion.NOTIFICATION_ID_KEY
 import com.telnyx.webrtc.sdk.ui.MainActivity
+import com.telnyx.webrtc.sdk.ui.isServiceForegrounded
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -32,7 +33,6 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class ActiveCallService : LifecycleService() {
-
 
 
     private var notificationManager: NotificationManager? = null
@@ -67,22 +67,25 @@ class ActiveCallService : LifecycleService() {
 
     @SuppressLint("CheckResult")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.getBooleanExtra(STOP_SERVICE_KEY,false) == true) {
+        if (intent?.getBooleanExtra(STOP_SERVICE_KEY, false) == true) {
             try {
                 lifecycleScope.launch {
                     appDataStore.changeEndCallStatus(true)
                     delay(1000)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        this@ActiveCallService.stopForeground(STOP_FOREGROUND_REMOVE)
-                    }else{
-                        stopForeground(true)
-                    }                }
+                    if (applicationContext.isServiceForegrounded(ActiveCallService::class.java)){
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            this@ActiveCallService.stopForeground(STOP_FOREGROUND_REMOVE)
+                        } else {
+                            stopForeground(true)
+                        }
+                        stopSelf()
+                    }
 
-            }catch (e:Exception){
+                }
+
+            } catch (e: Exception) {
                 Timber.e(e)
             }
-
-            stopSelf()
             return START_NOT_STICKY
         }
         createNotificationChannel()
@@ -102,10 +105,10 @@ class ActiveCallService : LifecycleService() {
             )
 
         val endCallAction: NotificationCompat.Action =
-                NotificationCompat.Action.Builder(
-                    R.drawable.ic_call_end_black,
-                    getString(R.string.end), endCallPendingIntent
-                ).build()
+            NotificationCompat.Action.Builder(
+                R.drawable.ic_call_end_black,
+                getString(R.string.end), endCallPendingIntent
+            ).build()
 
 
         val builder = NotificationCompat.Builder(this, channelId)
@@ -114,7 +117,8 @@ class ActiveCallService : LifecycleService() {
             .setContentTitle(this.getString(R.string.ongoing_call))
             .setContentText(
                 this.getString(
-                    R.string.active_call)
+                    R.string.active_call
+                )
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)
@@ -127,11 +131,6 @@ class ActiveCallService : LifecycleService() {
 
         return START_NOT_STICKY
     }
-
-
-
-
-
 
 
     private fun createPendingIntent(): PendingIntent? {
@@ -156,13 +155,12 @@ class ActiveCallService : LifecycleService() {
     }
 
     companion object {
-        const val CALL_ID_KEY ="CALL_ID_KEY"
-        const val NOTIFICATION_ID_KEY ="NOTIFICATION_ID_KEY"
+        const val CALL_ID_KEY = "CALL_ID_KEY"
+        const val NOTIFICATION_ID_KEY = "NOTIFICATION_ID_KEY"
         const val notificationId = 500
         const val channelId = "org.telnyx.activecall.channelid"
-        const val STOP_SERVICE_KEY ="org.telnyx.activecall.stopservice"
+        const val STOP_SERVICE_KEY = "org.telnyx.activecall.stopservice"
     }
-
 
 
 }
@@ -170,24 +168,24 @@ class ActiveCallService : LifecycleService() {
 class EndCallBroadCastReceiver() : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         Timber.d("End Call from Notification")
-        if (App.txClient == null){
+        if (App.txClient == null) {
             return
         }
-        val callId = intent?.getStringExtra(ActiveCallService.CALL_ID_KEY) ?: App.txClient?.call?.callId.toString() ?: ""
+        val callId = intent?.getStringExtra(ActiveCallService.CALL_ID_KEY)
+            ?: App.txClient?.call?.callId.toString() ?: ""
         App.txClient?.call?.endCall(UUID.fromString(callId))
 
         context ?: return
         context.apply {
             val mainIntent = Intent(context, ActiveCallService::class.java).apply {
-                putExtra(ActiveCallService.STOP_SERVICE_KEY,true)
+                putExtra(ActiveCallService.STOP_SERVICE_KEY, true)
             } // Build the intent for the service
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 this.startForegroundService(mainIntent)
-            }else {
+            } else {
                 this.startService(mainIntent)
             }
         }
-
 
 
     }

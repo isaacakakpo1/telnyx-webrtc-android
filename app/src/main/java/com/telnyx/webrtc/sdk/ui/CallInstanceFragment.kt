@@ -151,12 +151,7 @@ class CallInstanceFragment : Fragment(R.layout.fragment_call_instance), NumberKe
 
     }
 
-    @Suppress("DEPRECATION") // Deprecated for third party Services.
-    fun <T> Context.isServiceForegrounded(service: Class<T>) =
-        (getSystemService(ACTIVITY_SERVICE) as? ActivityManager)
-            ?.getRunningServices(Integer.MAX_VALUE)
-            ?.find { it.service.className == service.name }
-            ?.foreground == true
+
 
     private fun onTimerStart() {
         call_timer_id.base = SystemClock.elapsedRealtime()
@@ -270,3 +265,10 @@ class CallInstanceFragment : Fragment(R.layout.fragment_call_instance), NumberKe
         dialpad_section_id.visibility = View.INVISIBLE
     }
 }
+
+@Suppress("DEPRECATION") // Deprecated for third party Services.
+fun <T> Context.isServiceForegrounded(service: Class<T>) =
+    (getSystemService(ACTIVITY_SERVICE) as? ActivityManager)
+        ?.getRunningServices(Integer.MAX_VALUE)
+        ?.find { it.service.className == service.name }
+        ?.foreground == true
