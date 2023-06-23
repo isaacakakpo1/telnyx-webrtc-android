@@ -124,16 +124,21 @@ internal class Peer(
      * @see [AudioTrack]
      */
     fun startLocalAudioCapture() {
-        val audioSource: AudioSource = peerConnectionFactory.createAudioSource(MediaConstraints())
-        val localAudioTrack = peerConnectionFactory.createAudioTrack(
-            AUDIO_LOCAL_TRACK_ID,
-            audioSource
-        )
-        val localStream = peerConnectionFactory.createLocalMediaStream(AUDIO_LOCAL_STREAM_ID)
-        localAudioTrack.setEnabled(true)
-        localAudioTrack.setVolume(1.0)
-        localStream.addTrack(localAudioTrack)
-        peerConnection?.addTrack(localAudioTrack)
+        try {
+            val audioSource: AudioSource = peerConnectionFactory.createAudioSource(MediaConstraints())
+            val localAudioTrack = peerConnectionFactory.createAudioTrack(
+                AUDIO_LOCAL_TRACK_ID,
+                audioSource
+            )
+            val localStream = peerConnectionFactory.createLocalMediaStream(AUDIO_LOCAL_STREAM_ID)
+            localAudioTrack.setEnabled(true)
+            localAudioTrack.setVolume(1.0)
+            localStream.addTrack(localAudioTrack)
+            peerConnection?.addTrack(localAudioTrack)
+        }catch (e:Exception){
+            Timber.e(e)
+        }
+
     }
 
     /**
@@ -290,7 +295,10 @@ internal class Peer(
     }
 
     fun release() {
-        disconnect()
-        peerConnectionFactory.dispose()
+        try {
+            disconnect()
+            peerConnectionFactory.dispose()
+        }catch (e:Exception){}
+
     }
 }

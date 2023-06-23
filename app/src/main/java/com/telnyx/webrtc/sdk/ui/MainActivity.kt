@@ -41,6 +41,7 @@ import com.telnyx.webrtc.sdk.data.toCredentialConfig
 import com.telnyx.webrtc.sdk.manager.AppDataStore
 import com.telnyx.webrtc.sdk.manager.UserManager
 import com.telnyx.webrtc.sdk.model.AudioDevice
+import com.telnyx.webrtc.sdk.model.CallState
 import com.telnyx.webrtc.sdk.model.SocketMethod
 import com.telnyx.webrtc.sdk.model.TxServerConfiguration
 import com.telnyx.webrtc.sdk.notification.ActiveCallService
@@ -55,6 +56,7 @@ import kotlinx.android.synthetic.main.include_call_control_section.*
 import kotlinx.android.synthetic.main.include_incoming_call_section.*
 import kotlinx.android.synthetic.main.include_login_credential_section.*
 import kotlinx.android.synthetic.main.include_login_section.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -87,6 +89,7 @@ class MainActivity : AppCompatActivity() {
     private var runnable: Runnable? = null
     private val TIMER_DELAY = 1000
     private var callDuration = 0;
+    private var currentCallUUID:UUID? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,10 +101,7 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-
-
         Timber.e("${clients?.size}")
-
 
         // Add environment text
         isDev = userManager.isDev
@@ -117,10 +117,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setClients() {
-        val items = clients?.map { it.sipCallerIdName } ?: emptyList()
+        val items = clients?.map {
+            it.ringBackTone = R.raw.ringback_tone
+            it.incomingCallRing = R.raw.incoming_call
+            it.sipCallerIdName } ?: emptyList()
         var destinationItems = clients?.filter { it.sipCallerIdName != items.getOrNull(mainViewModel.selectedClientIndex.value) } ?: emptyList()
         val clientsAdapter = ArrayAdapter(this, R.layout.cleints_item, items)
-        val callerNumbersAdapter = ArrayAdapter(this, R.layout.cleints_item, destinationItems.map { it.sipCallerIdName }.toMutableList().apply {
+        val callerNumbersAdapter = ArrayAdapter(this, R.layout.cleints_item, destinationItems.map {
+            it.ringBackTone = R.raw.ringback_tone
+            it.incomingCallRing = R.raw.incoming_call
+            it.sipCallerIdName }.toMutableList().apply {
             add("Enter Test Number")
         })
         (clientsDropDown.editText as? AutoCompleteTextView)?.setAdapter(clientsAdapter)
@@ -273,7 +279,15 @@ class MainActivity : AppCompatActivity() {
 
                             SocketMethod.BYE.methodName -> {
                                 onByeReceivedViews()
+                                mainViewModel.setIsCallSending(false)
                                 mainViewModel.stopActiveCallService(applicationContext)
+                                mainViewModel.setIsCallRinging(false)
+                                call_state_text_value.text = "-"
+                            }
+                            SocketMethod.RINGING.methodName -> {
+                                Timber.e("Ringing Melody")
+                                mainViewModel.setIsCallRinging(true)
+                                call_state_text_value.text = getString(R.string.state_ringing)
                             }
                         }
                     }
@@ -337,6 +351,7 @@ class MainActivity : AppCompatActivity() {
 
         //Handle call option observers
         mainViewModel.getCallState()?.observe(this) { value ->
+            Timber.e("State $value")
             call_state_text_value.text = value.name
         }
         connect_button_id.setOnClickListener {
@@ -348,32 +363,55 @@ class MainActivity : AppCompatActivity() {
         }
         call_button_id.setOnClickListener {
 
+            lifecycleScope.launch {
+                delay(300)
+                if (mainViewModel.isCallSending.value){
+                    Timber.e("CallState :  ${(mainViewModel.isCallSending.value)}")
+                    return@launch
+                }else{
+                    mainViewModel.setIsCallSending(false)
+                    Timber.e("CallState :  ${(mainViewModel.isCallSending.value)}")
+                }
 
-            val number = mainViewModel.selectedDestination.ifEmpty {
-                customDestinationTxt.text.toString()
+
+
+
+                val number = mainViewModel.selectedDestination.ifEmpty {
+                    customDestinationTxt.text.toString()
+                }
+
+                if (mainViewModel.selectedDestination.isEmpty() && number.isEmpty()){
+                    Toast.makeText(this@MainActivity,getString(R.string.select_destination_msg),Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+
+                Timber.e("Number: $number")
+
+
+               currentCallUUID = mainViewModel.sendInvite(
+                    userManager.callerIdName,
+                    userManager.callerIdNumber,
+                    number,
+                    "Sample Client State"
+                )
+                runOnUiThread {
+                    call_button_id.visibility = View.INVISIBLE
+                    cancel_call_button_id.visibility = View.VISIBLE
+                }
             }
 
-            if (mainViewModel.selectedDestination.isEmpty() && number.isEmpty()){
-                Toast.makeText(this,getString(R.string.select_destination_msg),Toast.LENGTH_LONG).show()
-                return@setOnClickListener
-            }
-
-            Timber.e("Number: $number")
 
 
-            mainViewModel.sendInvite(
-                userManager.callerIdName,
-                userManager.callerIdNumber,
-                number,
-                "Sample Client State"
-            )
-            call_button_id.visibility = View.GONE
-            cancel_call_button_id.visibility = View.VISIBLE
         }
         cancel_call_button_id.setOnClickListener {
-            mainViewModel.endCall()
+            Timber.e("Call Ringing ${mainViewModel.isCallRinding.value}")
+            if (mainViewModel.isCallRinding.value){
+                mainViewModel.endCall()
+                mainViewModel.setIsCallRinging(false)
+            }
+            call_state_text_value.text = "-"
             call_button_id.visibility = View.VISIBLE
-            cancel_call_button_id.visibility = View.GONE
+            cancel_call_button_id.visibility = View.INVISIBLE
         }
         telnyx_image_id.setOnLongClickListener {
             onCreateSecretMenuDialog().show()

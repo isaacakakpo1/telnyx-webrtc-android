@@ -90,7 +90,9 @@ class Call(
         callerNumber: String,
         destinationNumber: String,
         clientState: String
-    ) {
+    ):UUID {
+
+
         val uuid: String = UUID.randomUUID().toString()
         val inviteCallId: UUID = UUID.randomUUID()
 
@@ -134,10 +136,10 @@ class Call(
             },
             ICE_CANDIDATE_DELAY
         )
-
         client.callOngoing()
         client.playRingBackTone()
         client.addToCalls(this)
+        return inviteCallId
     }
 
     /**
@@ -435,6 +437,7 @@ class Call(
                         )
                     )
                 )
+                callStateLiveData.postValue(CallState.ACTIVE)
             }
             else -> {
                 // There was no SDP in the response, there was an error.
@@ -545,6 +548,14 @@ class Call(
         } else {
             UUID.randomUUID()
         }
+       /* client.socketResponseLiveData.postValue(
+            SocketResponse.messageReceived(
+                ReceivedMessageBody(
+                    SocketMethod.RINGING.methodName,
+                    null
+                )
+            )
+        )*/
     }
 
     override fun onIceCandidateReceived(iceCandidate: IceCandidate) {

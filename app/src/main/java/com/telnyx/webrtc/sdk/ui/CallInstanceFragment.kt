@@ -157,11 +157,6 @@ class CallInstanceFragment : Fragment(R.layout.fragment_call_instance), NumberKe
         call_timer_id.base = SystemClock.elapsedRealtime()
         call_timer_id.start()
         call_timer_id.onChronometerTickListener = OnChronometerTickListener {
-            mainViewModel.getCallState()?.observe(this.viewLifecycleOwner) { value ->
-                if (!value.name.lowercase().contains("active")){
-                    parentFragmentManager.beginTransaction().remove(this@CallInstanceFragment).commit();
-                }
-            }
         }
 
     }

@@ -19,6 +19,7 @@
     <string name="end">End</string>
     <string name="ongoing_call">Ongoing Calll</string>
     <string name="active_call">Your call is active</string>
+    <string name="state_ringing">Ringing</string>
 
     <string name="telnyx_notification_channel_description">Telnyx WebRTC call notification</string>
     <string name="telnyx_notification_channel_id" translatable="false">telnyx_channel</string>
