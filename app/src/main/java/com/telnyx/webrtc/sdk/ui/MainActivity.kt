@@ -386,9 +386,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 Timber.e("Number: $number")
-
-
-               currentCallUUID = mainViewModel.sendInvite(
+                 mainViewModel.sendInvite(
                     userManager.callerIdName,
                     userManager.callerIdNumber,
                     number,
@@ -406,9 +404,9 @@ class MainActivity : AppCompatActivity() {
         cancel_call_button_id.setOnClickListener {
             Timber.e("Call Ringing ${mainViewModel.isCallRinding.value}")
             if (mainViewModel.isCallRinding.value){
-                mainViewModel.endCall()
                 mainViewModel.setIsCallRinging(false)
             }
+            mainViewModel.endCall()
             call_state_text_value.text = "-"
             call_button_id.visibility = View.VISIBLE
             cancel_call_button_id.visibility = View.INVISIBLE

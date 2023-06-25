@@ -429,6 +429,7 @@ class Call(
             earlySDP -> {
                 callStateLiveData.postValue(CallState.CONNECTING)
                 val stringSdp = peerConnection?.getLocalDescription()?.description
+
                 client.socketResponseLiveData.postValue(
                     SocketResponse.messageReceived(
                         ReceivedMessageBody(

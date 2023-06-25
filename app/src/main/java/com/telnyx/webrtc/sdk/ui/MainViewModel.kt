@@ -132,8 +132,8 @@ class MainViewModel @Inject constructor(
         callerNumber: String,
         destinationNumber: String,
         clientState: String
-    ) : UUID? {
-      return  telnyxClient?.call?.newInvite(callerName, callerNumber, destinationNumber, clientState)
+    )  {
+        telnyxClient?.call?.newInvite(callerName, callerNumber, destinationNumber, clientState)
     }
 
     fun acceptCall(callId: UUID, destinationNumber: String) {
