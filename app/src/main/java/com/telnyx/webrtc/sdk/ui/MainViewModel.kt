@@ -36,6 +36,23 @@ class MainViewModel @Inject constructor(
 
     private var telnyxClient: TelnyxClient? = null
 
+    private val _isCallSending = MutableStateFlow(false)
+    val isCallSending: StateFlow<Boolean>
+        get() = _isCallSending
+
+    fun setIsCallSending(value:Boolean){
+        _isCallSending.value = value
+    }
+
+
+    private val _isCallRinding = MutableStateFlow(false)
+    val isCallRinding: StateFlow<Boolean>
+        get() = _isCallRinding
+
+    fun setIsCallRinging(value:Boolean){
+        _isCallRinding.value = value
+    }
+
     private var currentCall: Call? = null
     private var previousCall: Call? = null
 
@@ -115,7 +132,7 @@ class MainViewModel @Inject constructor(
         callerNumber: String,
         destinationNumber: String,
         clientState: String
-    ) {
+    )  {
         telnyxClient?.call?.newInvite(callerName, callerNumber, destinationNumber, clientState)
     }
 
@@ -149,14 +166,16 @@ class MainViewModel @Inject constructor(
     fun stopActiveCallService(context: Context){
         try {
             context.apply {
-                Timber.d("Launching ActiveCallService")
-                val mainIntent = Intent(this, ActiveCallService::class.java).apply {
-                    putExtra(ActiveCallService.STOP_SERVICE_KEY,true)
-                } // Build the intent for the service
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    this.startForegroundService(mainIntent)
-                }else {
-                    this.startService(mainIntent)
+                if (applicationContext.isServiceForegrounded(ActiveCallService::class.java)){
+                    Timber.d("Launching ActiveCallService")
+                    val mainIntent = Intent(this, ActiveCallService::class.java).apply {
+                        putExtra(ActiveCallService.STOP_SERVICE_KEY,true)
+                    } // Build the intent for the service
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        this.startForegroundService(mainIntent)
+                    }else {
+                        this.startService(mainIntent)
+                    }
                 }
             }
         }catch (e:Exception){

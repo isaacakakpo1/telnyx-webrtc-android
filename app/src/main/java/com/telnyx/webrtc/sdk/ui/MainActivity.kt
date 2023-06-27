@@ -28,6 +28,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import com.karumi.dexter.Dexter
@@ -117,10 +118,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setClients() {
-        val items = clients?.map { it.sipCallerIdName } ?: emptyList()
+        val items = clients?.map {
+            it.ringBackTone = R.raw.ringback_tone
+            it.incomingCallRing = R.raw.incoming_call
+            it.sipCallerIdName } ?: emptyList()
         var destinationItems = clients?.filter { it.sipCallerIdName != items.getOrNull(mainViewModel.selectedClientIndex.value) } ?: emptyList()
         val clientsAdapter = ArrayAdapter(this, R.layout.cleints_item, items)
-        val callerNumbersAdapter = ArrayAdapter(this, R.layout.cleints_item, destinationItems.map { it.sipCallerIdName }.toMutableList().apply {
+        val callerNumbersAdapter = ArrayAdapter(this, R.layout.cleints_item, destinationItems.map {
+            it.ringBackTone = R.raw.ringback_tone
+            it.incomingCallRing = R.raw.incoming_call
+            it.sipCallerIdName }.toMutableList().apply {
             add("Enter Test Number")
         })
         (clientsDropDown.editText as? AutoCompleteTextView)?.setAdapter(clientsAdapter)
@@ -273,10 +280,11 @@ class MainActivity : AppCompatActivity() {
 
                             SocketMethod.BYE.methodName -> {
                                 onByeReceivedViews()
-                                if (this@MainActivity.isServiceForegrounded(ActiveCallService::class.java)){
-                                    mainViewModel.stopActiveCallService(applicationContext)
-
-                                }
+                                mainViewModel.stopActiveCallService(applicationContext)
+                                call_state_text_value.text = "-"
+                            }
+                            SocketMethod.RINGING.methodName -> {
+                                Timber.e("Ringing Melody")
                             }
                         }
                     }
@@ -523,22 +531,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getFCMToken() {
-        var token = ""
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+        FirebaseMessaging.getInstance().token.addOnCompleteListener(OnCompleteListener { task ->
             if (!task.isSuccessful) {
                 Timber.d("Fetching FCM registration token failed")
                 fcmToken = null
-            } else if (task.isSuccessful) {
-                // Get new FCM registration token
-                try {
-                    token = task.result.toString()
-                } catch (e: IOException) {
-                    Timber.d(e)
-                }
-                Timber.d("FCM TOKEN RECEIVED: $token")
+                Toast.makeText(baseContext, "Fetching FCM registration token failed", Toast.LENGTH_SHORT).show()
+                return@OnCompleteListener
             }
+
+            // Get new FCM registration token
+            val token = task.result
             fcmToken = token
-        }
+            // Log and toast
+            Timber.e("Token-T $fcmToken")
+            Toast.makeText(baseContext, token, Toast.LENGTH_SHORT).show()
+        })
+
     }
 
     private fun disconnectPressed() {

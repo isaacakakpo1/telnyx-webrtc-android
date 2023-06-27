@@ -13,8 +13,8 @@ data class ClientRequest(
 open class BaseClientRequest(
     val callerIdNumber: String = "",
     val fcmToken: String = "",
-    val incomingCallRing: Int = R.raw.incoming_call,
-    val ringBackTone: Int = R.raw.ringback_tone
+    var incomingCallRing: Int = R.raw.incoming_call,
+    var ringBackTone: Int = R.raw.ringback_tone
 )
 
 fun ClientRequest.toCredentialConfig(mainFcMToken:String? = null): CredentialConfig {

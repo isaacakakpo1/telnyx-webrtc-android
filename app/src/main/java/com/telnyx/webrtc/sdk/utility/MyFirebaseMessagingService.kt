@@ -34,6 +34,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
      */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
+        Timber.e("Message Received From Firebase: ${remoteMessage.data}")
         Timber.d("Message Received From Firebase: ${remoteMessage.data}")
 
         val params = remoteMessage.data
