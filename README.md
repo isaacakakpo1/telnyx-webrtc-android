@@ -212,6 +212,15 @@ In order to do this you need to:
        
  For a detailed tutorial, please visit our official [Push Notification Docs](https://developers.telnyx.com/docs/v2/webrtc/push-notifications?type=Android)
 
+ ## Disable Push Notfications
+ Push notfications can be disabled for the current user by : 
+```
+telnyxClient?.disablePushNotification(sipUserName = sipUserName, loginToken = null,fcmToken = fcmToken)
+```
+Use ```loginToken or sipUserName``` depending on the login type
+
+
+
 
  ## ProGuard changes
  NOTE:
